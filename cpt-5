@@ -1,0 +1,16 @@
+#! /usr/bin/chez-scheme --script
+
+(define (make-register name)
+        (let ( (content '*unassigned*) )
+                (define (dispatch message)
+                        (cond( (eq? message 'get) content)
+                                    ( (eq? message 'set) ( lambda(x) (set! content x)))
+                                    ( else (error "Unknown register operation!"
+                                                                (symbol->string message)))))
+        dispatch))
+
+(define (get-contents name) (name 'get) )
+(define rega (make-register 'rega))
+
+;(display (get-contents rega))
+(rega 'gt)

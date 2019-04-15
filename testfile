@@ -1,0 +1,13 @@
+#! /usr/bin/chez-scheme --script
+
+
+;(define a (list 'a 'b 'c))
+;(define b (list 'c 'd 'e))
+;(display (reverse a))
+
+(define (func x)
+        (if(not (equal? x 0))
+                (error "error!" x))
+)
+
+(func "a")
