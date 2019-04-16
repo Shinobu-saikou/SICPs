@@ -5,10 +5,8 @@
 ;(define b (list 'c 'd 'e))
 ;(display (reverse a))
 
-(define (func x)
-        (if(not (equal? x 0))
-                (error "error!" (symbol->string x))))
+(define(func x)(if(not (equal? x 0))(error "error!" (symbol->string x))))
 
 ;(func 'a)
 
-(display '())
+(display(list (list  '() )))
