@@ -1,6 +1,6 @@
 #! /usr/bin/chez-scheme --script
 
-(define (make-register name)
+(define (make-register)
         (let ( (content '*unassigned*) )
                 (define (dispatch message)
                         (cond( (eq? message 'get) content)
@@ -9,8 +9,110 @@
                                                                 (symbol->string message)))))
         dispatch))
 
-(define (get-contents name) (name 'get) )
-(define rega (make-register 'rega))
+(define (make-stack)
+        (let ((s '()))
+                (define (dispatch message)
+                        (cond( (eq? message 'push)  (lambda (x) (set! s (cons x s) ) ))
+                                    ( (eq? message 'pop)
+                                        (if (null? s)
+                                              (error "Empty stack!" (symbol->string message))
+                                              (let ((top (car s)))
+                                                        (begin (set! s (cdr s))
+                                                                        top))))
+                                    ( (eq? message 'initialize) (set! s '()))
+                                    (else (error "Unknown stack operation!"
+                                                                (symbol->string message)))))
+                dispatch))
 
-;(display (get-contents rega))
-(rega 'gt)
+
+(define (get-contents register-name) (register-name 'get) )
+(define (set-contents! register-name value) ((register-name 'set) value))
+(define (push stack-name value) ((stack-name 'push) value))
+(define (pop stack-name) (stack-name 'pop))
+
+(define rega (make-register ))
+(define s (make-stack))
+(push s 4)
+((rega 'set) 5)
+(display (pop s))
+(display (pop s))
+
+(define (make-machine register-names controller-text ops)
+                (let ((machine (make-new-machine)))
+                        ((for-each (lambda (register-name) ((machine 'allocate-register) register-name))
+                                            register-names)
+                          ((machine 'install-operations) ops)
+                          ((machine 'install-instruction-sequence) (assemble controller-text machine)))
+                machine))
+(define (start  machine) (machine 'start))
+
+
+(define (make-new-machine)
+        (let ( (pc (make-register))
+                  (flag (make-register))
+                  (stack (make-stack))
+                  (the-instruction-sequence '() ))
+                        (let((the-ops (list (list 'initialize-stack (lambda () (stack 'initialize)))))
+                                (register-table (list (list 'pc pc) (list 'flag flag))))
+                                        (define (allocate-register name)
+                                                        (if(assoc name register-table)
+                                                             (error "Multipy defined register" (symbol->string name))
+                                                             ( (set! register-table
+                                                                        (cons (list name (make-register)) register-table)))
+                                                                'allocated))
+                                        (define (look-up-register name)
+                                                        (let ((val (assoc name register-table)))
+                                                                (if(val)
+                                                                     (cadr val)
+                                                                     (error "Unknown register" (symbol->string name)))))
+                                        (define (exectute)
+                                                        (let ((insts (get-contents pc)))
+                                                                (if(null? insts)
+                                                                    'Done
+                                                                    ( begin
+                                                                        (inst-execution-proc (car insts))
+                                                                        (exectute)))))
+                                        (define (dispatch message)
+                                                        (cond ((eq? message 'start)
+                                                                        (set-contents! pc the-instruction-sequence)
+                                                                        (start))
+                                                                     ((eq? message 'install-instruction-sequence)
+                                                                        (lambda (content) (set! the-instruction-sequence content)))
+                                                                     ((eq? message 'allocate-register)
+                                                                       (allocate-register))
+                                                                     ((eq? message 'get-register)
+                                                                       (look-up-register))
+                                                                     ((eq? message 'install-operations)
+                                                                        (lambda (operations) (set! the-ops   ;;install时有可能是一个list，，单纯cons不行
+                                                                                                                             (append the-ops operations))))
+                                                                     ((eq? message 'stack) stack)
+                                                                     ((eq? message 'the-operations) the-ops)
+                                                                     (else (error "Unknown machine request" (symbol->string message)))
+                                                        ))
+                        dispatch)))
+
+(define (get-register machine reg-name) ((machine 'gt-register) reg-name))
+(define (get-register-contents machine reg-name) ((get-contents (get-register machine reg-name))))
+(define (set-register-contents! machine reg-name contents) ((set-contents! (get-register machine reg-name))))
+
+(define (assemble controller-text machine)
+
+
+                                    )
+
+
+(define (make-instruction inst) (cons inst '()))
+(define (make-label-entry label insts) (cons label insts))
+
+(define (extract-labels controller-text)
+            (if(null? text)
+                (cons '() '())
+                (let ((current-inst (car controller-text))
+                          (result (extract-labels (cdr controller-text))))
+                            (let ((rest-labels (cdr result))
+                                      (rest-insts (car result)))
+                                    (if(symbol? current-inst)
+                                        (cons rest-insts
+                                                    (cons (make-label-entry current-inst rest-insts) rest-labels ) )
+                                        (cons (cons (make-instruction current-inst) rest-insts)
+                                                     rest-labels))))))
